@@ -4,6 +4,8 @@
 
 **Contact:** [你的邮箱]
 
+**Code:** https://github.com/yhkkk1234/shortcut-doctor
+
 ---
 
 ## Abstract
