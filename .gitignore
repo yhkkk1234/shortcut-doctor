@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.tar.gz
+experiments/data/
+experiments/outputs/
+.DS_Store
