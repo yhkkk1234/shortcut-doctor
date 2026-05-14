@@ -207,7 +207,9 @@ In addition, we test an adversarial variant: a small color classifier (3-class M
 - **Image (9-parameter bionic layer):** Learnable channel mixing initialized to grayscale → 122% shortcut suppression (0.200 → 0.444).
 - **Unified principle:** A small learnable information-controlling module at the input layer, initialized to a *restricted* state and allowed to self-regulate, is a general mechanism for shortcut mitigation across modalities.
 
+---
 
+## 5. Analysis: When Does Information Bandwidth Control Work?
 
 The four experiments reveal a clear pattern:
 
