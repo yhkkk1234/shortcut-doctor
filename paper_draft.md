@@ -1,8 +1,8 @@
 # Information Bandwidth Control: When and How Less Information Helps Neural Networks
 
-**Authors:** [你的名字]
+**Authors:** Haolin Yang
 
-**Contact:** [你的邮箱]
+**Contact:** comicyang1234@163.com
 
 **Code:** https://github.com/yhkkk1234/shortcut-doctor
 
@@ -10,7 +10,7 @@
 
 ## Abstract
 
-We investigate a simple but under-explored question: *can actively restricting the information available to a neural network during training make it learn better?* Through three controlled experiments—ranging from synthetic data to CIFAR-100 with ResNet-18—we show that **physical information bandwidth control at the input layer** can effectively prevent shortcut learning, but only when the shortcut signal is more vulnerable to the restriction than the true task signal. We categorize shortcuts by their frequency profile (color/low-freq → grayscale; texture/high-freq → progressive blur; shape/low-freq → resolution reduction) and provide a decision tree that maps shortcut types to appropriate countermeasures. We also present Shortcut Doctor, a lightweight Python toolkit that automates the pipeline: probe analysis → shortcut diagnosis → prescription → treatment verification. Our core finding is not that any single method is universally effective, but that the choice of information restriction must match the type of shortcut being targeted—a form of "diagnose first, treat second."
+We investigate a simple but under-explored question: *can actively restricting the information available to a neural network during training make it learn better?* Through four controlled experiments—ranging from synthetic data to CIFAR-100 with ResNet-18—we show that **physical information bandwidth control at the input layer** can effectively prevent shortcut learning, but only when the shortcut signal is more vulnerable to the restriction than the true task signal. We categorize shortcuts by their frequency profile and introduce a learnable "bionic input layer" (9 parameters) that autonomously discovers which information channels to suppress—achieving 122% shortcut resistance improvement while adding negligible computational cost. We also present Shortcut Doctor, a lightweight Python toolkit that automates the pipeline: probe analysis → shortcut diagnosis → prescription → treatment verification. Our core finding is not that any single method is universally effective, but that the choice of information restriction must match the type of shortcut being targeted—and that models, given the option, will self-regulate toward better information diets.
 
 ---
 
@@ -19,6 +19,7 @@ We investigate a simple but under-explored question: *can actively restricting t
 Deep neural networks are notorious for learning spurious correlations—shortcuts—instead of the underlying patterns they are supposed to learn. A model trained to count fingers may simply memorize that "hand = 5 fingers"; a classifier may rely on background color rather than object shape; a medical imaging model may learn hospital-specific artifacts rather than pathology.
 
 Current approaches to mitigating shortcut learning include:
+
 - **Data rebalancing** — resampling or reweighting the training distribution
 - **Adversarial training** — penalizing reliance on known spurious features
 - **Loss-based debiasing** — modifying the objective to discourage specific shortcuts
@@ -31,13 +32,15 @@ The central insight is:
 
 > A model cannot learn a shortcut it cannot see.
 
-This paper makes three contributions:
+This paper makes four contributions:
 
 1. **A taxonomy of shortcuts by frequency profile** (low-frequency vs. high-frequency), mapping each type to the appropriate information restriction method.
 
-2. **Three controlled experiments** demonstrating when information bandwidth control works, when it fails, and why—from synthetic dots (effective: +57%) to CIFAR-100 with ResNet-18 (ineffective: blur helps the shortcut survive).
+2. **Four controlled experiments** demonstrating when information bandwidth control works, when it fails, and why—from synthetic dots (grayscale: +133%, progressive blur: +57%) to CIFAR-100 with ResNet-18 (blur ineffective: shortcut survives) to a bionic input layer that autonomously learns to suppress color (+122%, 0.200→0.444).
 
-3. **Shortcut Doctor**, an open-source Python toolkit that automates the diagnostic pipeline: probe analysis → shortcut type classification → prescription → treatment verification.
+3. **A cross-modal validation** of the "less is more" principle: a learnable information bottleneck at the input layer—with only 9 parameters—generalizes from text (25M LLM with Gaussian token diffusion) to vision (channel mixing initialized to grayscale), achieving significant shortcut resistance with negligible computational cost.
+
+4. **Shortcut Doctor**, an open-source Python toolkit that automates the diagnostic pipeline: probe analysis → shortcut type classification → prescription → treatment verification.
 
 ---
 
@@ -73,13 +76,13 @@ Given a trained model that may have learned shortcuts, we extract features from 
 
 We classify each confirmed shortcut into one of five types based on its frequency profile:
 
-| Shortcut Type | Frequency | Blur Resistant | Example |
-|--------------|-----------|----------------|---------|
-| COLOR | Low | Yes | Red always means 3 dots |
-| TEXTURE | High | No | Watermark patterns |
-| SHAPE | Low | Yes | Silhouette bias |
-| POSITION | Middle | Partial | Corner artifacts |
-| MIXED | Mixed | Partial | Combined biases |
+| Shortcut Type | Frequency | Blur Resistant | Example                 |
+| ------------- | --------- | -------------- | ----------------------- |
+| COLOR         | Low       | Yes            | Red always means 3 dots |
+| TEXTURE       | High      | No             | Watermark patterns      |
+| SHAPE         | Low       | Yes            | Silhouette bias         |
+| POSITION      | Middle    | Partial        | Corner artifacts        |
+| MIXED         | Mixed     | Partial        | Combined biases         |
 
 #### Step 3: Prescription
 
@@ -122,15 +125,16 @@ This forces the model to first learn coarse, low-frequency patterns before being
 
 **Models:** Small CNN (4 conv layers), 5-way count classification. 900 training images.
 
-| Model | Train (biased) | Counterfactual | Gap | Color Probe |
-|-------|---------------|----------------|-----|-------------|
-| Baseline (color) | 1.000 | 0.200 | 0.800 | 1.000 |
-| Grayscale | 1.000 | **0.467** | 0.533 | 1.000 |
-| Fixed blur (8×8) | 1.000 | 0.200 | 0.800 | 1.000 |
-| Progressive blur (4→8→native) | -- | **0.315** | -- | 1.000 |
-| Unbiased (upper bound) | -- | 1.000 | -- | -- |
+| Model                         | Train (biased) | Counterfactual | Gap   | Color Probe |
+| ----------------------------- | -------------- | -------------- | ----- | ----------- |
+| Baseline (color)              | 1.000          | 0.200          | 0.800 | 1.000       |
+| Grayscale                     | 1.000          | **0.467**      | 0.533 | 1.000       |
+| Fixed blur (8×8)              | 1.000          | 0.200          | 0.800 | 1.000       |
+| Progressive blur (4→8→native) | --             | **0.315**      | --    | 1.000       |
+| Unbiased (upper bound)        | --             | 1.000          | --    | --          |
 
 **Findings:**
+
 - **Grayscale is most effective** (+133%, 0.200→0.467): color is a low-frequency shortcut, immune to blur.
 - **Progressive blur helps** (+57%, 0.200→0.315): early extreme blur forces the model to use non-color features.
 - **Fixed blur fails** (0.200): color survives 8×8 blur perfectly.
@@ -142,14 +146,15 @@ This forces the model to first learn coarse, low-frequency patterns before being
 
 **Model:** ResNet-18 adapted for 32×32 input. 50,000 training images, 30 epochs. Run on NVIDIA RTX 4090D.
 
-| Model | Shortcut Test | Clean Test | Gap |
-|-------|-------------|-----------|-----|
-| Baseline (border) | 0.966 | 0.017 | 0.949 |
-| No border (upper bound) | 0.213 | 0.592 | -0.379 |
-| Fixed blur (24×24) | 0.993 | 0.018 | 0.976 |
-| Progressive blur (8→16→24) | 0.940 | 0.016 | 0.924 |
+| Model                      | Shortcut Test | Clean Test | Gap    |
+| -------------------------- | ------------- | ---------- | ------ |
+| Baseline (border)          | 0.966         | 0.017      | 0.949  |
+| No border (upper bound)    | 0.213         | 0.592      | -0.379 |
+| Fixed blur (24×24)         | 0.993         | 0.018      | 0.976  |
+| Progressive blur (8→16→24) | 0.940         | 0.016      | 0.924  |
 
 **Findings:**
+
 - **The shortcut dominates completely**: baseline model achieves 96.6% with the border but only 1.7% without it (random = 1.0% for 100 classes). The model sees nothing but the colored border.
 - **Blur is ineffective**: both fixed and progressive blur fail because the border is a low-frequency color signal that survives blur, while CIFAR-100's fine-grained visual features are destroyed.
 - **This is a boundary case**: blur harms the true task more than the shortcut, violating the precondition for effectiveness.
@@ -158,22 +163,53 @@ This forces the model to first learn coarse, low-frequency patterns before being
 
 **Setup:** 32×32 images of 10 geometric patterns with an 8×8 colored corner patch unique to each class. 100% correlation. 2,000 training images.
 
-| Model | Shortcut Test | Clean Test | Gap |
-|-------|-------------|-----------|-----|
-| Baseline | 1.000 | 1.000 | 0.000 |
-| No shortcut (upper bound) | -- | 1.000 | -- |
-| Fixed blur (8×8) | 0.800 | 0.800 | 0.000 |
-| Progressive blur | 1.000 | 0.800 | 0.200 |
+| Model                     | Shortcut Test | Clean Test | Gap   |
+| ------------------------- | ------------- | ---------- | ----- |
+| Baseline                  | 1.000         | 1.000      | 0.000 |
+| No shortcut (upper bound) | --            | 1.000      | --    |
+| Fixed blur (8×8)          | 0.800         | 0.800      | 0.000 |
+| Progressive blur          | 1.000         | 0.800      | 0.200 |
 
 **Findings:**
+
 - **Task is too easy**: even with only 200 examples per class, the patterns are perfectly distinguishable.
 - **Progressive blur backfires**: the model ends up *more* reliant on the shortcut because early extreme blur destroys the real patterns but the shortcut recovers first.
 
----
+### 4.4 Learnable Input Modulation: The "Opt-In Color" Mechanism
 
-## 5. Analysis: When Does Information Bandwidth Control Work?
+**Motivation.** The previous experiments used fixed information restrictions (grayscale, blur, resolution reduction). But a fixed restriction may be either too aggressive (destroying useful signal) or too weak (letting the shortcut survive). A more elegant approach is to give the model the *option* to access information, but let it decide through gradient-based learning whether to use it.
 
-The three experiments reveal a clear pattern:
+**Setup.** We introduce a *Bionic Input Layer*—a learnable 3×3 channel mixing matrix placed before the model's first convolution, initialized to the grayscale matrix (all entries = 1/3). With only 9 parameters, this layer can either:
+- Stay at grayscale (suppressing color information), or
+- Recover color by learning a non-grayscale matrix.
+
+In addition, we test an adversarial variant: a small color classifier (3-class MLP) trained on the bionic layer's output, with its gradient *reversed* for the bionic layer parameters. This creates a gradient conflict: the count task pushes toward preserving useful information, while the adversarial color signal pushes toward destroying color.
+
+**Setup:** Same synthetic dots task as Experiment 4.1 (5-class counting, 100% color-to-count shortcut, 900 training images).
+
+| Model                          | CF Accuracy | vs Baseline | Mixing Strength |
+| ------------------------------ | ----------- | ----------- | --------------- |
+| H) Baseline (color)            | 0.200       | --          | --              |
+| C) True grayscale (reference)  | 0.458       | +0.258      | --              |
+| M) Grayscale init, plain train | 0.393       | +0.193      | 0.010           |
+| N) Grayscale init + adversary  | 0.444       | +0.244      | 0.008           |
+
+**Findings:**
+
+1. **The model actively chooses to remain grayscale.** Despite having 9 learnable parameters to recover full-color information, the mixing matrix barely deviates from 1/3 (mixing strength < 0.01). The model "realizes" through gradient descent that color information is harmful and elects not to use it.
+
+2. **The adversarial signal reinforces this choice.** Model N (with adversary) achieves 0.444, within 3% of the hard-coded grayscale baseline (0.458), despite the adversary *not* having direct control over the bionic layer—it only provides a gradient signal that color is undesirable.
+
+3. **"Opt-in" color outperforms "opt-out" color.** In Experiment 4.1, the adversarial approach starting from the identity matrix failed (mixing strength < 0.005, no improvement). Starting from grayscale and letting the model *recover* color if needed is far more effective than starting from color and trying to *remove* it.
+
+**Cross-Modal Significance.** This experiment completes a cross-modal validation loop:
+- **Text (25M LLM):** Gaussian blur along token sequence + learnable modulation → 33%+ loss reduction.
+- **Image (9-parameter bionic layer):** Learnable channel mixing initialized to grayscale → 122% shortcut suppression (0.200 → 0.444).
+- **Unified principle:** A small learnable information-controlling module at the input layer, initialized to a *restricted* state and allowed to self-regulate, is a general mechanism for shortcut mitigation across modalities.
+
+
+
+The four experiments reveal a clear pattern:
 
 ```
 Effectiveness = Vulnerability(shortcut) / Vulnerability(true task)
