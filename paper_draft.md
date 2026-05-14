@@ -1,8 +1,8 @@
 # Information Bandwidth Control: When and How Less Information Helps Neural Networks
 
-**Authors:** [你的名字]
+**Authors:** Haolin Yang
 
-**Contact:** [你的邮箱]
+**Contact:** comicyang1234@163.com
 
 ---
 
